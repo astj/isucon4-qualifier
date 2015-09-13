@@ -7,6 +7,10 @@ use Kossy;
 use DBIx::Sunny;
 use Digest::SHA qw/ sha256_hex /;
 use Data::Dumper;
+use constanst {
+    LOGIN_STATUS_FAILURE => 0,
+    LOGIN_STATUS_SUCCESS => 1
+};
 
 sub config {
   my ($self) = @_;
@@ -65,25 +69,25 @@ sub attempt_login {
   my $user = $self->db->select_row('SELECT * FROM users WHERE login = ?', $login);
 
   if ($self->ip_banned($ip)) {
-    $self->login_log(0, $login, $ip, $user ? $user->{id} : undef);
+    $self->login_log(LOGIN_STATUS_FAILURE, $login, $ip, $user ? $user->{id} : undef);
     return undef, 'banned';
   }
 
   if ($self->user_locked($user)) {
-    $self->login_log(0, $login, $ip, $user->{id});
+    $self->login_log(LOGIN_STATUS_FAILURE, $login, $ip, $user->{id});
     return undef, 'locked';
   }
 
   if ($user && calculate_password_hash($password, $user->{salt}) eq $user->{password_hash}) {
-    $self->login_log(1, $login, $ip, $user->{id});
+    $self->login_log(LOGIN_STATUS_SUCCESS, $login, $ip, $user->{id});
     return $user, undef;
   }
   elsif ($user) {
-    $self->login_log(0, $login, $ip, $user->{id});
+    $self->login_log(LOGIN_STATUS_FAILURE, $login, $ip, $user->{id});
     return undef, 'wrong_password';
   }
   else {
-    $self->login_log(0, $login, $ip);
+    $self->login_log(LOGIN_STATUS_FAILURE, $login, $ip);
     return undef, 'wrong_login';
   }
 };
