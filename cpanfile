@@ -10,4 +10,4 @@ requires "Starlet";
 requires "Plack::Session";
 requires "Data::Dumper";
 
-requires 'Devel::NYTProf';
+requires "Devel::NYTProf";
