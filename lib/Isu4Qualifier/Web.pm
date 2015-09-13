@@ -17,7 +17,8 @@ sub config {
   my ($self) = @_;
   $self->{_config} ||= {
     user_lock_threshold => $ENV{'ISU4_USER_LOCK_THRESHOLD'} || 3,
-    ip_ban_threshold => $ENV{'ISU4_IP_BAN_THRESHOLD'} || 10
+    ip_ban_threshold => $ENV{'ISU4_IP_BAN_THRESHOLD'} || 10,
+    redis_key_prefix => $ENV{ISU4_REDIS_KEY_PREFIX} || 'REDIS',
   };
 };
 
@@ -52,6 +53,11 @@ sub redis {
   };
 }
 
+sub redis_command {
+    my ($self, $command, $key, @args) = @_;
+    $self->redis->command($command, $self->config->{redis_key_prefix}.$key, @args);
+}
+
 sub calculate_password_hash {
   my ($password, $salt) = @_;
   sha256_hex($password . ':' . $salt);
@@ -59,14 +65,14 @@ sub calculate_password_hash {
 
 sub user_locked {
   my ($self, $user) = @_;
-  my $failure = $self->redis->command('get', 'fail-id-'.$user->{'id'});
+  my $failure = $self->redis_command('get', 'fail-id-'.$user->{'id'});
 
   $self->config->{user_lock_threshold} <= ($failure || 0);
 };
 
 sub ip_banned {
   my ($self, $ip) = @_;
-  my $failure = $self->redis->command('get', 'fail-ip-'.$ip);
+  my $failure = $self->redis_command('get', 'fail-ip-'.$ip);
 
   $self->config->{ip_ban_threshold} <= ($failure || 0);
 };
@@ -108,7 +114,7 @@ sub current_user {
 sub last_login {
   my ($self, $user_id) = @_;
   # 0が今のログイン
-  return  $self->redis->command('lindex', 'last-login-ip-for-id-'.$user_id, 1);
+  return  $self->redis_command('lindex', 'last-login-ip-for-id-'.$user_id, 1);
 };
 
 sub banned_ips {
@@ -164,15 +170,15 @@ sub login_log {
 
   if ($succeeded) {
       # 成功したら失敗ログを消す
-      $self->redis->command('del', 'fail-ip-'.$ip);
-      $self->redis->command('del', 'fail-id-'.$user_id);
+      $self->redis_command('del', 'fail-ip-'.$ip);
+      $self->redis_command('del', 'fail-id-'.$user_id);
 
       # ログインipを記録する
       # (左から2番目がログイン時参照される)
-      $self->redis->command('lpush', 'last-login-ip-for-id-'.$user_id, $ip);
+      $self->redis_command('lpush', 'last-login-ip-for-id-'.$user_id, $ip);
   } else {
-      $self->redis->command('incr', 'fail-ip-'.$ip);
-      $self->redis->command('incr', 'fail-id-'.$user_id);
+      $self->redis_command('incr', 'fail-ip-'.$ip);
+      $self->redis_command('incr', 'fail-id-'.$user_id);
   }
 };
 
