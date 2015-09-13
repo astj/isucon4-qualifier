@@ -114,7 +114,9 @@ sub current_user {
 sub last_login {
   my ($self, $user_id) = @_;
   # 0が今のログイン
-  return  $self->redis_command('lindex', 'last-login-ip-for-id-'.$user_id, 1);
+  my $ip = $self->redis_command('lindex', 'last-login-ip-for-id-'.$user_id, 1);
+  my $time = $self->redis_command('lindex', 'last-login-datetime-for-id-'.$user_id, 1);
+  +{ created_at => $time, ip => $ip};
 };
 
 sub banned_ips {
@@ -175,7 +177,9 @@ sub login_log {
 
       # ログインipを記録する
       # (左から2番目がログイン時参照される)
+      my $now = $self->db->select_row('SELECT NOW() as now')->{now};
       $self->redis_command('lpush', 'last-login-ip-for-id-'.$user_id, $ip);
+      $self->redis_command('lpush', 'last-login-datetime-for-id-'.$user_id, $now);
   } else {
       $self->redis_command('incr', 'fail-ip-'.$ip);
       $self->redis_command('incr', 'fail-id-'.$user_id);
