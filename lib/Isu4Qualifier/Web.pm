@@ -24,14 +24,13 @@ sub db {
   my ($self) = @_;
   my $host = $ENV{ISU4_DB_HOST} || '127.0.0.1';
   my $port = $ENV{ISU4_DB_PORT} || 3306;
-  my $socket = $ENV{ISU4_DB_SOCKET} || '/var/lib/mysql/mysql.sock';
   my $username = $ENV{ISU4_DB_USER} || 'root';
   my $password = $ENV{ISU4_DB_PASSWORD};
   my $database = $ENV{ISU4_DB_NAME} || 'isu4_qualifier';
 
   $self->{_db} ||= do {
     DBIx::Sunny->connect(
-      "dbi:mysql:database=$database;mysql_socket=$socket", $username, $password, {
+      "dbi:mysql:database=$database;host=$host;port=$port", $username, $password, {
         RaiseError => 1,
         PrintError => 0,
         AutoInactiveDestroy => 1,
