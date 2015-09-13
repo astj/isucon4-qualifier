@@ -20,9 +20,9 @@ builder {
       httponly    => 1,
       session_key => "isu4_session",
     ),
-#    store => Plack::Session::Store::File->new(
-#      dir         => $session_dir,
-#    ),
+    store => Plack::Session::Store::File->new(
+      dir         => $session_dir,
+    ),
   ;
 #  enable 'Profiler::NYTProf';
   $app;
