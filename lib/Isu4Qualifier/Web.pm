@@ -107,12 +107,8 @@ sub current_user {
 
 sub last_login {
   my ($self, $user_id) = @_;
-
-  my $logs = $self->db->select_all(
-   'SELECT * FROM login_log WHERE succeeded = 1 AND user_id = ? ORDER BY id DESC LIMIT 2',
-   $user_id);
-
-  @$logs[-1];
+  # 0が今のログイン
+  return  $self->redis->command('lindex', 'last-login-ip-for-id-'.$user_id, 1);
 };
 
 sub banned_ips {
@@ -166,10 +162,14 @@ sub locked_users {
 sub login_log {
   my ($self, $succeeded, $login, $ip, $user_id) = @_;
 
-  # 成功したら釈放される
   if ($succeeded) {
+      # 成功したら失敗ログを消す
       $self->redis->command('del', 'fail-ip-'.$ip);
       $self->redis->command('del', 'fail-id-'.$user_id);
+
+      # ログインipを記録する
+      # (左から2番目がログイン時参照される)
+      $self->redis->command('lpush', 'last-login-ip-for-id-'.$user_id, $ip);
   } else {
       $self->redis->command('incr', 'fail-ip-'.$ip);
       $self->redis->command('incr', 'fail-id-'.$user_id);
