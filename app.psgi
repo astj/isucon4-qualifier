@@ -6,7 +6,7 @@ use Plack::Builder;
 use Isu4Qualifier::Web;
 use Plack::Session::State::Cookie;
 use Plack::Session::Store::File;
-use Devel::NYTPRof;
+use Devel::NYTProf;
 
 my $root_dir = File::Basename::dirname(__FILE__);
 my $session_dir = "/tmp/isu4_session_plack";
