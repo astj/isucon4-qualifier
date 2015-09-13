@@ -7,7 +7,7 @@ use Kossy;
 use DBIx::Sunny;
 use Digest::SHA qw/ sha256_hex /;
 use Data::Dumper;
-use constanst {
+use constant {
     LOGIN_STATUS_FAILURE => 0,
     LOGIN_STATUS_SUCCESS => 1
 };
