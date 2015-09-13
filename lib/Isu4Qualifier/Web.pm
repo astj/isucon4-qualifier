@@ -169,10 +169,10 @@ sub login_log {
   # 成功したら釈放される
   if ($succeeded) {
       $self->redis->command('del', 'fail-ip-'.$ip);
-      $self->redis->command('del', 'fail-id-'.$user-id);
+      $self->redis->command('del', 'fail-id-'.$user_id);
   } else {
       $self->redis->command('incr', 'fail-ip-'.$ip);
-      $self->redis->command('incr', 'fail-id-'.$user-id);
+      $self->redis->command('incr', 'fail-id-'.$user_id);
   }
 };
 
