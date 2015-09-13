@@ -6,8 +6,8 @@ use Plack::Builder;
 use Isu4Qualifier::Web;
 use Plack::Session::State::Cookie;
 use Plack::Session::Store::File;
-use Plack::Middleware::Profiler::NYTProf;
-use Plack::Middleware::Profiler::KYTProf;
+#use Plack::Middleware::Profiler::NYTProf;
+#use Plack::Middleware::Profiler::KYTProf;
 
 my $root_dir = File::Basename::dirname(__FILE__);
 my $session_dir = "/tmp/isu4_session_plack";
@@ -26,6 +26,6 @@ builder {
     ),
   ;
 #  enable 'Profiler::NYTProf';
-  enable 'Profiler::KYTProf';
+#  enable 'Profiler::KYTProf';
   $app;
 };
