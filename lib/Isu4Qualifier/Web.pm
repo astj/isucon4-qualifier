@@ -124,24 +124,8 @@ sub banned_ips {
   my @ips;
   my $threshold = $self->config->{ip_ban_threshold};
 
-  my $not_succeeded = $self->db->select_all('SELECT ip FROM (SELECT ip, MAX(succeeded) as max_succeeded, COUNT(1) as cnt FROM login_log GROUP BY ip) AS t0 WHERE t0.max_succeeded = 0 AND t0.cnt >= ?', $threshold);
-
-  # 一度も成功せずにbanされたrecord
-  foreach my $row (@$not_succeeded) {
-    push @ips, $row->{ip};
-  }
-
-  my $last_succeeds = $self->db->select_all('SELECT ip, MAX(id) AS last_login_id FROM login_log WHERE succeeded = 1 GROUP by ip');
-
-  # 最後に成功してから制限以上banされたrecord
-  foreach my $row (@$last_succeeds) {
-    my $count = $self->db->select_one('SELECT COUNT(1) AS cnt FROM login_log WHERE ip = ? AND ? < id', $row->{ip}, $row->{last_login_id});
-    if ($threshold <= $count) {
-      push @ips, $row->{ip};
-    }
-  }
-
-  \@ips;
+  my $banned_ips = $self->redis_command(qw/keys fail-ip*/);
+  [map { substr($_, 8) } @$banned_ips];
 };
 
 sub locked_users {
@@ -260,6 +244,7 @@ get '/mypage' => [qw(session)] => sub {
 
 get '/report' => sub {
   my ($self, $c) = @_;
+  $self->redis->command('bgsave');
   $c->render_json({
     banned_ips => $self->banned_ips,
     locked_users => $self->locked_users,
