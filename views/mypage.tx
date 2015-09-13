@@ -9,7 +9,7 @@
   <dt>前回ログイン</dt>
   <dd id="last-logined-at"><: $last_login.created_at :></dd>
   <dt>最終ログインIPアドレス</dt>
-  <dd id="last-logined-ip"><: $last_login.ip :></dd>
+  <dd id="last-logined-ip"><: $last_login :></dd>
 </dl>
 
 <div class="panel panel-default">
