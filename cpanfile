@@ -12,3 +12,4 @@ requires "Data::Dumper";
 
 requires "Devel::NYTProf";
 requires "Plack::Middleware::Profiler::NYTProf";
+requires "Devel::KYTProf";
