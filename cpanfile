@@ -14,3 +14,4 @@ requires "Devel::NYTProf";
 requires "Plack::Middleware::Profiler::NYTProf";
 requires "Devel::KYTProf";
 requires "Plack::Middleware::Profiler::KYTProf";
+requires "Redis::Jet";

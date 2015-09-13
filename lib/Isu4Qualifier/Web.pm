@@ -7,6 +7,7 @@ use Kossy;
 use DBIx::Sunny;
 use Digest::SHA qw/ sha256_hex /;
 use Data::Dumper;
+use Redis::Jet;
 use constant {
     LOGIN_STATUS_FAILURE => 0,
     LOGIN_STATUS_SUCCESS => 1
@@ -41,6 +42,16 @@ sub db {
   };
 }
 
+sub redis {
+  my ($self) = @_;
+  my $host = $ENV{ISU4_REDIS_HOST} || '127.0.0.1';
+  my $port = $ENV{ISU4_REDIS_PORT} || 6379;
+
+  $self->{_redis} //= do {
+      Redis::Jet->new( server => "$host:$port" );
+  };
+}
+
 sub calculate_password_hash {
   my ($password, $salt) = @_;
   sha256_hex($password . ':' . $salt);
@@ -48,20 +59,16 @@ sub calculate_password_hash {
 
 sub user_locked {
   my ($self, $user) = @_;
-  my $log = $self->db->select_row(
-    'SELECT COUNT(1) AS failures FROM login_log WHERE user_id = ? AND id > IFNULL((select id from login_log where user_id = ? AND succeeded = 1 ORDER BY id DESC LIMIT 1), 0)',
-    $user->{'id'}, $user->{'id'});
+  my $failure = $self->redis->command('get', 'fail-id-'.$user->{'id'});
 
-  $self->config->{user_lock_threshold} <= $log->{failures};
+  $self->config->{user_lock_threshold} <= ($failure || 0);
 };
 
 sub ip_banned {
   my ($self, $ip) = @_;
-  my $log = $self->db->select_row(
-    'SELECT COUNT(1) AS failures FROM login_log WHERE ip = ? AND id > IFNULL((select id from login_log where ip = ? AND succeeded = 1 ORDER BY id DESC LIMIT 1), 0)',
-    $ip, $ip);
+  my $failure = $self->redis->command('get', 'fail-ip-'.$ip);
 
-  $self->config->{ip_ban_threshold} <= $log->{failures};
+  $self->config->{ip_ban_threshold} <= ($failure || 0);
 };
 
 sub attempt_login {
@@ -115,12 +122,14 @@ sub banned_ips {
 
   my $not_succeeded = $self->db->select_all('SELECT ip FROM (SELECT ip, MAX(succeeded) as max_succeeded, COUNT(1) as cnt FROM login_log GROUP BY ip) AS t0 WHERE t0.max_succeeded = 0 AND t0.cnt >= ?', $threshold);
 
+  # 一度も成功せずにbanされたrecord
   foreach my $row (@$not_succeeded) {
     push @ips, $row->{ip};
   }
 
   my $last_succeeds = $self->db->select_all('SELECT ip, MAX(id) AS last_login_id FROM login_log WHERE succeeded = 1 GROUP by ip');
 
+  # 最後に成功してから制限以上banされたrecord
   foreach my $row (@$last_succeeds) {
     my $count = $self->db->select_one('SELECT COUNT(1) AS cnt FROM login_log WHERE ip = ? AND ? < id', $row->{ip}, $row->{last_login_id});
     if ($threshold <= $count) {
@@ -156,10 +165,15 @@ sub locked_users {
 
 sub login_log {
   my ($self, $succeeded, $login, $ip, $user_id) = @_;
-  $self->db->query(
-    'INSERT INTO login_log (`created_at`, `user_id`, `login`, `ip`, `succeeded`) VALUES (NOW(),?,?,?,?)',
-    $user_id, $login, $ip, ($succeeded ? 1 : 0)
-  );
+
+  # 成功したら釈放される
+  if ($succeeded) {
+      $self->redis->command('del', 'fail-ip-'.$ip);
+      $self->redis->command('del', 'fail-id-'.$user-id);
+  } else {
+      $self->redis->command('incr', 'fail-ip-'.$ip);
+      $self->redis->command('incr', 'fail-id-'.$user-id);
+  }
 };
 
 sub set_flash {
