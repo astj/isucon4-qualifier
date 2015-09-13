@@ -24,6 +24,6 @@ builder {
       dir         => $session_dir,
     ),
   ;
-  enable 'Profiler::NYTProf';
+#  enable 'Profiler::NYTProf';
   $app;
 };
